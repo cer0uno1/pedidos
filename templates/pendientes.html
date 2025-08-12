@@ -5,12 +5,16 @@
 
 <a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
 
+<div class="mb-3">
+  <input type="text" id="filtroCliente" class="form-control" placeholder="Filtrar por cliente...">
+</div>
+
 {% if pedidos %}
   {% for p in pedidos %}
   <div class="card mb-3">
-    <div class="card-header">
-      <strong>Pedido #{{ p.id }}</strong> — {{ p.fecha }}
-    </div>
+<div class="card-header">
+  <strong>Pedido #{{ p.id }}</strong> — {{ p.fecha }} — <em>{{ p.cliente }}</em>
+</div>
     <div class="card-body">
       {% if p.productos_eliminados %}
         <p class="text-warning"><em>Algunos productos de este pedido ya no están disponibles.</em></p>
@@ -42,4 +46,13 @@
 {% else %}
   <p>No hay pedidos pendientes.</p>
 {% endif %}
+<script>
+document.getElementById("filtroCliente").addEventListener("input", function() {
+    const filtro = this.value.toLowerCase();
+    document.querySelectorAll(".pedido-card").forEach(card => {
+        const nombreCliente = card.querySelector(".cliente-nombre").textContent.toLowerCase();
+        card.style.display = nombreCliente.includes(filtro) ? "" : "none";
+    });
+});
+</script>
 {% endblock %}

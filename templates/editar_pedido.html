@@ -6,6 +6,10 @@
 <a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
 
 <form method="POST" id="pedidoForm">
+  <div class="mb-3">
+  <label for="cliente" class="form-label">Nombre del Cliente</label>
+  <input type="text" name="cliente" id="cliente" class="form-control" value="{{ cliente_actual }}" required>
+</div>
   <table class="table table-bordered">
     <thead>
       <tr>

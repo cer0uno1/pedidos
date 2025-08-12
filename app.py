@@ -69,6 +69,17 @@ def agregar_columna_turno():
         pass
     conn.close()
 
+def agregar_columna_cliente():
+    conn = get_db_connection()
+    try:
+        conn.execute('ALTER TABLE pedidos ADD COLUMN cliente TEXT')
+        conn.commit()
+    except sqlite3.OperationalError:
+        # La columna ya existe
+        pass
+    conn.close()
+
+agregar_columna_cliente()
 agregar_columna_archivado()
 agregar_columna_turno()
 
@@ -88,6 +99,11 @@ def agregar_pedido():
         return redirect(url_for('editar_productos'))
 
     if request.method == 'POST':
+        cliente = request.form.get("cliente", "").strip()
+        if not cliente:
+            flash("Debe ingresar el nombre del cliente", "warning")
+            return redirect(url_for('agregar_pedido'))
+
         cantidades = {str(p['id']): int(request.form.get(f"cantidad_{p['id']}", 0)) for p in productos}
         
         seleccionados = [(p['id'], p['precio'], cantidades[str(p['id'])]) for p in productos if cantidades[str(p['id'])] > 0]
@@ -97,21 +113,26 @@ def agregar_pedido():
             return redirect(url_for('agregar_pedido'))
 
         total = sum(precio * cant for _, precio, cant in seleccionados)
-
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         cur = conn.cursor()
-        cur.execute('INSERT INTO pedidos (fecha, total, estado) VALUES (?, ?, ?)', (fecha, total, "Pendiente"))
+        cur.execute(
+            'INSERT INTO pedidos (fecha, total, estado, cliente) VALUES (?, ?, ?, ?)',
+            (fecha, total, "Pendiente", cliente)
+        )
         pedido_id = cur.lastrowid
 
         for prod_id, precio, cant in seleccionados:
             subtotal = precio * cant
-            cur.execute('INSERT INTO detalle_pedidos (pedido_id, producto_id, cantidad, subtotal) VALUES (?, ?, ?, ?)',
-                        (pedido_id, prod_id, cant, subtotal))
+            cur.execute(
+                'INSERT INTO detalle_pedidos (pedido_id, producto_id, cantidad, subtotal) VALUES (?, ?, ?, ?)',
+                (pedido_id, prod_id, cant, subtotal)
+            )
 
         conn.commit()
         conn.close()
 
-        flash(f"El pedido se realizó correctamente, el total es de ${total:.2f}", "success")
+        flash(f"El pedido de {cliente} se realizó correctamente, total ${total:.2f}", "success")
         return redirect(url_for('pedidos_pendientes'))
 
     conn.close()
@@ -121,7 +142,9 @@ def agregar_pedido():
 def pedidos_pendientes():
     conn = get_db_connection()
 
-    pedidos = conn.execute('SELECT * FROM pedidos WHERE estado = "Pendiente"').fetchall()
+    pedidos = conn.execute(
+        'SELECT id, fecha, total, estado, cliente FROM pedidos WHERE estado = "Pendiente"'
+    ).fetchall()
 
     lista_pedidos = []
     for pedido in pedidos:
@@ -139,6 +162,7 @@ def pedidos_pendientes():
             'fecha': pedido['fecha'],
             'total': pedido['total'],
             'estado': pedido['estado'],
+            'cliente': pedido['cliente'],
             'detalles': detalles,
             'detalles_vacios': len(detalles) == 0,
             'productos_eliminados': productos_eliminados
@@ -147,10 +171,15 @@ def pedidos_pendientes():
     conn.close()
     return render_template('pendientes.html', pedidos=lista_pedidos)
 
+
 @app.route('/pedidos/completar/<int:id>')
 def completar_pedido(id):
     conn = get_db_connection()
-    pedido = conn.execute('SELECT * FROM pedidos WHERE id = ? AND estado = "Pendiente"', (id,)).fetchone()
+    pedido = conn.execute(
+        'SELECT cliente FROM pedidos WHERE id = ? AND estado = "Pendiente"',
+        (id,)
+    ).fetchone()
+
     if pedido is None:
         conn.close()
         flash("Pedido no encontrado o ya completado.", "warning")
@@ -159,7 +188,9 @@ def completar_pedido(id):
     conn.execute('UPDATE pedidos SET estado = "Completado" WHERE id = ?', (id,))
     conn.commit()
     conn.close()
-    flash(f"Pedido #{id} marcado como completado.", "success")
+
+    cliente_nombre = pedido['cliente'] if pedido['cliente'] else "Cliente sin nombre"
+    flash(f"Pedido #{id} de {cliente_nombre} marcado como completado.", "success")
     return redirect(url_for('pedidos_pendientes'))
 
 @app.route('/pedidos/editar/<int:id>', methods=['GET', 'POST'])
@@ -167,6 +198,8 @@ def editar_pedido(id):
     conn = get_db_connection()
 
     productos = conn.execute('SELECT * FROM productos').fetchall()
+    pedido_info = conn.execute('SELECT cliente FROM pedidos WHERE id = ?', (id,)).fetchone()
+    cliente_actual = pedido_info['cliente'] if pedido_info else ""
 
     detalles_actuales = conn.execute('''
         SELECT productos.nombre, detalle_pedidos.producto_id, detalle_pedidos.cantidad
@@ -183,6 +216,11 @@ def editar_pedido(id):
         cantidades_actuales[d['producto_id']] = d['cantidad']
 
     if request.method == 'POST':
+        cliente = request.form.get("cliente", "").strip()
+        if not cliente:
+            flash("Debe ingresar el nombre del cliente", "warning")
+            return redirect(url_for('editar_pedido', id=id))
+
         cantidades = {str(p['id']): int(request.form.get(f"cantidad_{p['id']}", 0)) for p in productos}
         seleccionados = [(p['id'], p['precio'], cantidades[str(p['id'])]) for p in productos if cantidades[str(p['id'])] > 0]
 
@@ -199,7 +237,7 @@ def editar_pedido(id):
             conn.execute('INSERT INTO detalle_pedidos (pedido_id, producto_id, cantidad, subtotal) VALUES (?, ?, ?, ?)',
                          (id, prod_id, cant, subtotal))
 
-        conn.execute('UPDATE pedidos SET total = ? WHERE id = ?', (total, id))
+        conn.execute('UPDATE pedidos SET total = ?, cliente = ? WHERE id = ?', (total, cliente, id))
 
         conn.commit()
         conn.close()
@@ -207,13 +245,21 @@ def editar_pedido(id):
         return redirect(url_for('pedidos_pendientes'))
 
     conn.close()
-    return render_template('editar_pedido.html', id=id, productos=productos, cantidades=cantidades_actuales, productos_eliminados=productos_eliminados)
-
+    return render_template(
+        'editar_pedido.html',
+        id=id,
+        productos=productos,
+        cantidades=cantidades_actuales,
+        productos_eliminados=productos_eliminados,
+        cliente_actual=cliente_actual
+    )
 
 @app.route('/completados')
 def pedidos_completados():
     conn = get_db_connection()
-    pedidos = conn.execute('SELECT * FROM pedidos WHERE estado = "Completado" AND archivado = 0').fetchall()
+    pedidos = conn.execute(
+        'SELECT id, fecha, total, estado, cliente FROM pedidos WHERE estado = "Completado" AND archivado = 0'
+    ).fetchall()
 
     lista_pedidos = []
     for pedido in pedidos:
@@ -231,6 +277,7 @@ def pedidos_completados():
             'fecha': pedido['fecha'],
             'total': pedido['total'],
             'estado': pedido['estado'],
+            'cliente': pedido['cliente'],
             'detalles': detalles,
             'detalles_vacios': len(detalles) == 0,
             'productos_eliminados': productos_eliminados
@@ -294,8 +341,8 @@ def cerrar_dia():
 
     conn = get_db_connection()
     pedidos_completados = conn.execute(
-        'SELECT * FROM pedidos WHERE estado = "Completado" AND archivado = 0 AND fecha LIKE ?', (hoy + '%',)
-    ).fetchall()
+    'SELECT id, fecha, total, cliente FROM pedidos WHERE estado = "Completado" AND archivado = 0 AND fecha LIKE ?', (hoy + '%',)
+).fetchall()
 
     total_dia = sum(p['total'] for p in pedidos_completados)
 
@@ -333,18 +380,18 @@ def confirmar_cierre_dia():
         detalles.append((p, det))
 
     session['cierre_dia'] = {
-        'fecha': hoy,
-        'turno_id': cierre_id,
-        'pedidos': [
-            {
-                'id': p['id'],
-                'fecha': p['fecha'],
-                'total': p['total'],
-                'detalles': [{'nombre': d['nombre'], 'cantidad': d['cantidad'], 'subtotal': d['subtotal']} for d in det]
-            } for p, det in detalles
-        ]
-    }
-
+    'fecha': hoy,
+    'turno_id': cierre_id,
+    'pedidos': [
+        {
+            'id': p['id'],
+            'fecha': p['fecha'],
+            'total': p['total'],
+            'cliente': p['cliente'],  # <--- Agregado aquí
+            'detalles': [{'nombre': d['nombre'], 'cantidad': d['cantidad'], 'subtotal': d['subtotal']} for d in det]
+        } for p, det in detalles
+    ]
+}
     # Aquí archivamos solo pedidos de este turno
     conn.execute('UPDATE pedidos SET archivado = 1 WHERE turno_id = ?', (cierre_id,))
     
@@ -375,6 +422,7 @@ def descargar_excel():
                 rows.append({
                     'Pedido Nro': pedido['id'],
                     'Fecha': pd.to_datetime(pedido['fecha']),
+                    'Cliente': pedido.get('cliente', 'Sin nombre'),  # Agregado campo Cliente
                     'Producto': d['nombre'],
                     'Cantidad': d['cantidad'],
                     'Subtotal': d['subtotal'],
@@ -389,17 +437,18 @@ def descargar_excel():
         total_general = sum(p['total'] for p in pedidos)
 
         last_row = len(df) + 2
-        worksheet.cell(row=last_row, column=5, value="TOTAL GENERAL:")
-        worksheet.cell(row=last_row, column=6, value=total_general)
+        worksheet.cell(row=last_row, column=6, value="TOTAL GENERAL:")
+        worksheet.cell(row=last_row, column=7, value=total_general)
         
         column_widths = {
-    'A': 12,
-    'B': 12,
-    'C': 25,
-    'D': 12,
-    'E': 12,
-    'F': 15
-    }
+            'A': 12,  # Pedido Nro
+            'B': 12,  # Fecha
+            'C': 20,  # Cliente (ancho ajustado)
+            'D': 25,  # Producto
+            'E': 12,  # Cantidad
+            'F': 12,  # Subtotal
+            'G': 15   # Total Pedido
+        }
         for col_letter, width in column_widths.items():
             worksheet.column_dimensions[col_letter].width = width
 
@@ -416,12 +465,12 @@ def descargar_excel():
                     cell.number_format = 'DD/MM/YYYY'
 
                 # Formatear precios con signo $
-                if cell.column_letter in ['E', 'F']:  # Subtotal y Total Pedido
+                if cell.column_letter in ['F', 'G']:  # Subtotal y Total Pedido
                     cell.number_format = '"$"#,##0.00'
 
         # Formato y alineación para fila de total general
-        cell_total_label = worksheet.cell(row=last_row, column=5)
-        cell_total_value = worksheet.cell(row=last_row, column=6)
+        cell_total_label = worksheet.cell(row=last_row, column=6)
+        cell_total_value = worksheet.cell(row=last_row, column=7)
         cell_total_label.alignment = align_center
         cell_total_value.alignment = align_center
         cell_total_value.number_format = '"$"#,##0.00'
