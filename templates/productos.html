@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Editar Productos{% endblock %}
+{% block content %}
+<h1>Productos</h1><br>
+
+<a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
+
+<form method="POST" class="mb-4">
+    <h2>Agregar producto</h2>
+  <div class="mb-3">
+    <label for="nombre" class="form-label">Nombre del producto</label>
+    <input type="text" name="nombre" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="precio" class="form-label">Precio</label>
+    <input type="number" step="0.01" name="precio" class="form-control" required>
+  </div>
+  <button type="submit" class="btn btn-success">Agregar producto</button>
+</form>
+
+<h2>Lista de productos</h2>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Precio</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in productos %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td>{{ p.nombre }}</td>
+      <td>${{ "%.2f"|format(p.precio) }}</td>
+      <td>
+        <a href="/productos/editar/{{ p.id }}" class="btn btn-warning btn-sm">Editar</a>
+        <a href="/productos/eliminar/{{ p.id }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('¿Seguro que deseas eliminar este producto?');">Eliminar</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

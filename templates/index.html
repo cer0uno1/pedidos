@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Menú Principal{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Menú Principal</h1>
+
+<div class="list-group">
+  <a href="/agregar" class="list-group-item list-group-item-action">➕ Agregar Pedido</a>
+  <a href="/pendientes" class="list-group-item list-group-item-action">📋 Ver Pedidos Pendientes</a>
+  <a href="/completados" class="list-group-item list-group-item-action">✅ Ver Pedidos Completados</a>
+  <a href="/productos" class="list-group-item list-group-item-action">🛠 Editar Productos</a>
+  <li><a class="dropdown-item" href="{{ url_for('cerrar_dia') }}">Cerrar el Día</a></li>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Cerrar el Día{% endblock %}
+{% block content %}
+<h1>Cerrar el Día - {{ fecha }}</h1>
+
+<a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
+
+{% if pedidos %}
+  <h3>Pedidos Completados</h3>
+  <ul class="list-group mb-3">
+    {% for p in pedidos %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      Pedido #{{ p.id }} — Total: ${{ "%.2f"|format(p.total) }}
+      <span>{{ p.fecha }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <h4>Total generado en el día: ${{ "%.2f"|format(total) }}</h4>
+
+  <div class="alert alert-warning">
+    <strong>Atención:</strong> Al confirmar el cierre del día, <u>se eliminarán todos los pedidos pendientes</u> y esta acción <u>no se puede deshacer</u>.
+  </div>
+
+  <form method="POST" action="{{ url_for('confirmar_cierre_dia') }}">
+    <button type="submit" class="btn btn-danger">Confirmar Cierre del Día</button>
+  </form>
+
+{% else %}
+  <p>No hay pedidos completados para el día {{ fecha }}.</p>
+{% endif %}
+{% endblock %}

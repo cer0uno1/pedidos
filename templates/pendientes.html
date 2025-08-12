@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Pedidos Pendientes{% endblock %}
+{% block content %}
+<h1>Pedidos Pendientes</h1>
+
+<a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
+
+{% if pedidos %}
+  {% for p in pedidos %}
+  <div class="card mb-3">
+    <div class="card-header">
+      <strong>Pedido #{{ p.id }}</strong> — {{ p.fecha }}
+    </div>
+    <div class="card-body">
+      {% if p.productos_eliminados %}
+        <p class="text-warning"><em>Algunos productos de este pedido ya no están disponibles.</em></p>
+      {% endif %}
+      {% if p.detalles_vacios %}
+        <p><em>Producto(s) eliminado(s) - detalles no disponibles</em></p>
+      {% else %}
+      <ul class="list-group mb-3">
+        {% for d in p.detalles %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ d.nombre if d.nombre else 'Producto eliminado' }} (x{{ d.cantidad }})
+          <span>${{ "%.2f"|format(d.subtotal) }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <h5 class="text-end">Total: ${{ "%.2f"|format(p.total) }}</h5>
+
+      <div class="mt-3">
+        <a href="/pedidos/editar/{{ p.id }}" class="btn btn-warning btn-sm">✏ Editar</a>
+        <a href="/pedidos/completar/{{ p.id }}" class="btn btn-success btn-sm"
+           onclick="return confirm('¿Marcar como completado?');">✅ Completar</a>
+        <a href="/pedidos/eliminar/{{ p.id }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('¿Seguro que deseas eliminar este pedido?');">🗑 Eliminar</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <p>No hay pedidos pendientes.</p>
+{% endif %}
+{% endblock %}

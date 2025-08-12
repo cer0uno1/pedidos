@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Editar Pedido{% endblock %}
+{% block content %}
+<h1>Editar Pedido #{{ id }}</h1>
+
+<a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
+
+<form method="POST" id="pedidoForm">
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Precio</th>
+        <th>Cantidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr>
+        <td>{{ p.nombre }}</td>
+        <td>${{ "%.2f"|format(p.precio) }}</td>
+        <td>
+          <input type="number" min="0" name="cantidad_{{ p.id }}" class="form-control cantidad"
+                 value="{{ cantidades.get(p.id, 0) }}" data-precio="{{ p.precio }}">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Total: $<span id="total">0.00</span></h3>
+
+  <button type="submit" class="btn btn-primary">Guardar cambios</button>
+</form>
+
+<script>
+function calcularTotal() {
+    let total = 0;
+    document.querySelectorAll(".cantidad").forEach(input => {
+        let precio = parseFloat(input.dataset.precio);
+        let cantidad = parseInt(input.value) || 0;
+        total += precio * cantidad;
+    });
+    document.getElementById("total").innerText = total.toFixed(2);
+}
+
+document.querySelectorAll(".cantidad").forEach(input => {
+    input.addEventListener("input", calcularTotal);
+});
+
+// Calcular al cargar la página
+calcularTotal();
+</script>
+{% endblock %}

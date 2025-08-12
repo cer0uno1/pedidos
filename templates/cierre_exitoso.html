@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Cierre de Día Exitoso{% endblock %}
+{% block content %}
+<h1>Cierre del día {{ fecha }} realizado correctamente</h1>
+
+<a href="{{ url_for('descargar_excel') }}" class="btn btn-primary">📥 Descargar datos del día</a>
+<a href="{{ url_for('index') }}" class="btn btn-secondary">🏠 Volver al menú principal</a>
+{% endblock %}

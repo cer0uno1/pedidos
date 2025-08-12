@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Agregar Pedido{% endblock %}
+{% block content %}
+<h1>Agregar Pedido</h1>
+
+<a href="/" class="btn btn-secondary mb-3">⬅ Volver al Menú Principal</a>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="POST" id="pedidoForm">
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Precio</th>
+        <th>Cantidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr>
+        <td>{{ p.nombre }}</td>
+        <td>${{ "%.2f"|format(p.precio) }}</td>
+        <td>
+          <input type="number" min="0" name="cantidad_{{ p.id }}" class="form-control cantidad" value="0" data-precio="{{ p.precio }}">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Total: $<span id="total">0.00</span></h3>
+
+  <button type="submit" class="btn btn-success">Confirmar Pedido</button>
+</form>
+
+<script>
+document.querySelectorAll(".cantidad").forEach(input => {
+    input.addEventListener("input", calcularTotal);
+});
+
+function calcularTotal() {
+    let total = 0;
+    document.querySelectorAll(".cantidad").forEach(input => {
+        let precio = parseFloat(input.dataset.precio);
+        let cantidad = parseInt(input.value) || 0;
+        total += precio * cantidad;
+    });
+    document.getElementById("total").innerText = total.toFixed(2);
+}
+</script>
+{% endblock %}
